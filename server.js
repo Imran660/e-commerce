@@ -5,6 +5,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv")
 const fs = require("fs");
+const bodyParser = require("body-parser");
 
 //config
 dotenv.config();
@@ -18,13 +19,16 @@ mongoose
   .catch((err) => console.log(err));
 
 //app initialise
-const app=express();
-
+const app = express();
 
 //app middlewares
 app.use(cors());
-app.use(morgan("dev"))
-app.use(express.json());
+app.use(morgan("dev"));
+app.use(
+  bodyParser.json({
+    limit: "50mb",
+  })
+);
 fs.readdirSync(`${__dirname}/routes`).forEach((file) => {
    app.use("/api", require(`./routes/${file}`))
 })
