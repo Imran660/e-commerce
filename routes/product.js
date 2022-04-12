@@ -9,6 +9,7 @@ const {
   read,
   fetchSubsByCategoryId,
   list,
+  handleRating,
 } = require("../controllers/product");
 const { checkUser, checkAdmin } = require("../middlewares/auth");
 const Router = express.Router();
@@ -31,4 +32,7 @@ Router.get("/product/:slug", read);
 Router.get("/category/subs/:id", checkUser, checkAdmin, fetchSubsByCategoryId);
 //get products by pagination
 Router.post("/products", list);
+//reviews
+Router.put("/product/star/:id", checkUser, handleRating);
+
 module.exports = Router;
