@@ -10,6 +10,8 @@ const {
   fetchSubsByCategoryId,
   list,
   handleRating,
+  getRelatedProducts,
+  getFilteredProducts,
 } = require("../controllers/product");
 const { checkUser, checkAdmin } = require("../middlewares/auth");
 const Router = express.Router();
@@ -29,10 +31,14 @@ Router.put("/product/:slug", checkUser, checkAdmin, update);
 //read product
 Router.get("/product/:slug", read);
 //get all the sub-categories based on category id
-Router.get("/category/subs/:id", checkUser, checkAdmin, fetchSubsByCategoryId);
+Router.get("/category/subs/:id", fetchSubsByCategoryId);
 //get products by pagination
 Router.post("/products", list);
 //reviews
 Router.put("/product/star/:id", checkUser, handleRating);
+//give related products
+Router.get("/product/related/:id", getRelatedProducts);
+//Filter
+Router.post("/product/filter", getFilteredProducts);
 
 module.exports = Router;

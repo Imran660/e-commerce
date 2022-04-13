@@ -171,3 +171,118 @@ exports.handleRating = async (req, res) => {
     res.status(500).send(err.message);
   }
 };
+
+exports.getRelatedProducts = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).exec();
+    const categoryId = product.category;
+    const products = await (
+      await Product.find({ category: categoryId }).exec()
+    ).filter((product) => product._id.toString() !== req.params.id);
+    res.json(products);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(err.message);
+  }
+};
+
+const handleQuery = async (req, res, query) => {
+  const products = await Product.find({ $text: { $search: query } })
+    .populate("category", "_id name")
+    .populate("subs", "_id name")
+    .exec();
+  res.json(products);
+};
+const handlePriceQuery = (req, res, price) => {
+  Product.find({ price: { $gte: price[0], $lte: price[1] } })
+    .populate("category", "_id name")
+    .populate("subs", "_id name")
+    .exec((err, products) => {
+      if (err) {
+        res.status(500).json({
+          error: err.message,
+        });
+      }
+      res.json(products);
+    });
+};
+const handleQueryFilter = (req, res, name, value) => {
+  Product.find({ [name]: value })
+    .populate("category", "_id name")
+    .populate("subs", "_id name")
+    .exec((err, products) => {
+      if (err) {
+        res.status(500).json({
+          error: err.message,
+        });
+      }
+      res.json(products);
+    });
+};
+const handleQuerySubs = (req, res, sub) => {
+  Product.find({ subs: { $in: sub._id } })
+    .populate("category", "_id name")
+    .populate("subs", "_id name")
+    .exec((err, products) => {
+      if (err) {
+        res.status(500).json({
+          error: err.message,
+        });
+      }
+      res.json(products);
+    });
+};
+const handleStarsRating = (req, res, star) => {
+  Product.find({ ratings: { $elemMatch: { star } } })
+    .populate("category", "_id name")
+    .populate("subs", "_id name")
+    .exec((err, products) => {
+      if (err) {
+        res.status(500).json({
+          error: err.message,
+        });
+      }
+      res.json(products);
+    });
+};
+exports.getFilteredProducts = async (req, res) => {
+  try {
+    const { query, price, category, stars, color, brand, subs, shipping } =
+      req.body;
+    if (query) {
+      console.log(query);
+      await handleQuery(req, res, query);
+    }
+    if (price) {
+      console.log(price);
+      await handlePriceQuery(req, res, price);
+    }
+    if (category) {
+      console.log(category);
+      await handleQueryFilter(req, res, "category", category);
+    }
+    if (subs) {
+      console.log(subs);
+      await handleQuerySubs(req, res, subs);
+    }
+    if (stars) {
+      console.log(stars);
+      await handleStarsRating(req, res, stars);
+    }
+    if (color) {
+      console.log(color);
+      await handleQueryFilter(req, res, "color", color);
+    }
+    if (brand) {
+      console.log(brand);
+      await handleQueryFilter(req, res, "brand", brand);
+    }
+    if (shipping) {
+      console.log(shipping);
+      await handleQueryFilter(req, res, "shipping", shipping);
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(err.message);
+  }
+};
