@@ -8,6 +8,8 @@ const {
   removeFromWishList,
   createOrder,
   saveAddress,
+  applyCoupon,
+  getOrders,
 } = require("../controllers/user");
 const { checkUser } = require("../middlewares/auth");
 const Router = express.Router();
@@ -22,4 +24,6 @@ Router.put("/user/wishlist/:pid", checkUser, removeFromWishList);
 //orders
 Router.post("/user/address", checkUser, saveAddress);
 Router.post("/user/order", checkUser, createOrder);
+Router.post("/user/coupon", checkUser, applyCoupon);
+Router.get("/user/order", checkUser, getOrders);
 module.exports = Router;

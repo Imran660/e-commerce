@@ -1,12 +1,16 @@
 const User = require("../modals/user");
 const Cart = require("../modals/cart");
 const Product = require("../modals/product");
+const Coupon = require("../modals/coupon");
+const Order = require("../modals/order");
+const { ObjectId } = require("mongoose").Schema;
 exports.saveUserCart = async (req, res) => {
   try {
     const { cart } = req.body;
     let products = [];
-    const user = await User.findOne({ email: req.user.email }).exec();
-    let cartExistByUser = await Cart.findOne({ orderedBy: user._id }).exec();
+    let cartExistByUser = await Cart.findOne({
+      orderedBy: req.user.email,
+    }).exec();
     if (cartExistByUser) {
       cartExistByUser.remove();
       console.log("Cart is removed");
@@ -29,7 +33,7 @@ exports.saveUserCart = async (req, res) => {
     let newCart = await new Cart({
       products,
       cartTotal,
-      orderedBy: user._id,
+      orderedBy: req.user.email,
     }).save();
     res.status(201).json(newCart);
   } catch (err) {
@@ -39,8 +43,7 @@ exports.saveUserCart = async (req, res) => {
 };
 exports.getUserCart = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.user.email }).exec();
-    const cart = await Cart.findOne({ orderedBy: user._id })
+    const cart = await Cart.findOne({ orderedBy: req.user.email })
       .populate("products.product")
       .exec();
     res.status(200).json(cart);
@@ -52,8 +55,9 @@ exports.getUserCart = async (req, res) => {
 
 exports.removeCart = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.user.email }).exec();
-    const cart = await Cart.findOneAndRemove({ orderedBy: user._id }).exec();
+    const cart = await Cart.findOneAndRemove({
+      orderedBy: req.user.email,
+    }).exec();
     console.log(cart);
     res.send("ok");
   } catch (err) {
@@ -118,4 +122,72 @@ exports.saveAddress = async (req, res) => {
     console.log(err);
   }
 };
-exports.createOrder = async (req, res) => {};
+
+exports.applyCoupon = async (req, res) => {
+  const { coupon } = req.body;
+  const validCoupon = await Coupon.findOne({ name: coupon }).exec();
+  console.log(validCoupon);
+  if (validCoupon == null) {
+    return res.status(400).json({
+      err: "Invalid coupon code",
+    });
+  }
+  console.log({ type: typeof req.user.email, email: req.user.email });
+  const cartInfo = await Cart.findOne({
+    orderedBy: req.user.email.toString(),
+  }).exec();
+  console.log({ cartInfo });
+  let { cartTotal } = cartInfo;
+
+  //calculate the discounted amout
+  let totalAfterDiscount = (
+    cartTotal -
+    (cartTotal * validCoupon.discount) / 100
+  ).toFixed(2);
+  await Cart.findOneAndUpdate(
+    { orderedBy: req.user.email },
+    { totalAfterDiscount },
+    { new: true }
+  ).exec();
+  res.json({ cartTotal, totalAfterDiscount });
+};
+exports.createOrder = async (req, res) => {
+  try {
+    const { paymentIntent } = req.body.stripeResponse;
+    const { products } = await Cart.findOne({
+      orderedBy: req.user.email,
+    }).exec();
+    let order = await new Order({
+      orderedBy: req.user.email,
+      products,
+      paymentIntent,
+    }).save();
+
+    let bulkOptions = products?.map((product) => {
+      return {
+        updateOne: {
+          filter: { _id: product._id },
+          update: { $inc: { quantity: -product.count, sold: +product.count } },
+        },
+      };
+    });
+    let updateProducts = await Product.bulkWrite(bulkOptions, {});
+    res.json({ ok: true });
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+exports.getOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({
+      orderedBy: req.user.email,
+    })
+      .populate("products.product")
+      .exec();
+    res.status(200).json(orders);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(err.message);
+  }
+};
